@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>URL Labeler</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body>
+  <main class="page">
+    <header class="top">
+      <h1>URL Labeler</h1>
+      <div class="actions">
+        <button id="importBtn" type="button">Import</button>
+        <button id="exportBtn" type="button">Export</button>
+        <button id="addBtn" type="button" class="primary">+ New label</button>
+        <input id="importFile" type="file" accept=".json,application/json" hidden>
+      </div>
+    </header>
+
+    <div class="tester">
+      <label for="testUrl">Test a URL</label>
+      <input id="testUrl" type="url" placeholder="https://prod.example.com/admin">
+    </div>
+    <p id="testResult" class="test-result" hidden></p>
+
+    <ul id="list" class="rules"></ul>
+    <p id="empty" class="empty" hidden>No labels yet. Click <strong>+ New label</strong> to make one.</p>
+    <p class="muted small">Labels are checked from top to bottom. The first one that matches wins.</p>
+  </main>
+
+  <dialog id="editor">
+    <form id="form" method="dialog" novalidate>
+      <h2 id="editorTitle">New label</h2>
+
+      <label>Name
+        <input name="name" required placeholder="Production">
+        <small>Only used to tell your labels apart.</small>
+      </label>
+
+      <fieldset>
+        <legend>Match</legend>
+        <div class="seg">
+          <label><input type="radio" name="matchType" value="contains" checked> URL contains</label>
+          <label><input type="radio" name="matchType" value="regex"> Regex</label>
+        </div>
+        <input name="pattern" required placeholder="prod" spellcheck="false" class="mono">
+        <label class="inline"><input type="checkbox" name="caseSensitive"> Case sensitive</label>
+        <p id="patternError" class="error" hidden></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Text</legend>
+        <p class="muted small hint">Checked from top to bottom. The first check that matches the URL sets the text.
+          Leave <em>Show</em> empty to show the matched text itself (for a regex, its first group).</p>
+        <div id="checks" class="checks-list"></div>
+        <button id="addCheck" type="button" class="add-check">+ Add text check</button>
+        <label class="default-text">Default text
+          <input name="defaultText" placeholder="PROD">
+          <small>Used when no check matches. Leave empty to show no label in that case.</small>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Look</legend>
+        <div id="shapes" class="shapes"></div>
+        <div class="field">
+          <span class="field-label">Color</span>
+          <input name="color" type="color" value="#d93025">
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Show it in</legend>
+        <div id="placements" class="checks"></div>
+        <label id="positionRow" class="inline">In-page position
+          <select name="pagePosition"></select>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Test &amp; preview</legend>
+        <input name="testUrl" type="url" placeholder="Paste a URL to test this label…">
+        <p id="editorTest" class="test-result"></p>
+        <div id="preview" class="preview">
+          <div class="pv-item" data-placement="title favicon">
+            <span class="pv-caption">Tab</span>
+            <div class="pv-tab"><canvas id="pvFavicon" width="32" height="32"></canvas><span id="pvTitle"></span></div>
+          </div>
+          <div class="pv-item" data-placement="badge">
+            <span class="pv-caption">Toolbar</span>
+            <div class="pv-toolbar"><canvas id="pvIcon" width="32" height="32"></canvas><span id="pvBadge" class="pv-badge"></span></div>
+          </div>
+          <div class="pv-item" data-placement="page">
+            <span class="pv-caption">In page</span>
+            <div class="pv-page">
+              <div class="pv-page-bar"></div>
+              <div class="pv-page-line"></div>
+              <div class="pv-page-line short"></div>
+              <span id="pvPill" class="pill"></span>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <label class="inline"><input type="checkbox" name="enabled" checked> Enabled</label>
+
+      <footer class="dialog-actions">
+        <button id="deleteBtn" type="button" class="danger left">Delete</button>
+        <button id="cancelBtn" type="button">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <template id="checkRow">
+    <div class="check-row">
+      <input class="ck-text" placeholder="matched text" aria-label="Show">
+      <span class="ck-arrow" aria-hidden="true">←</span>
+      <select class="ck-type" aria-label="Match type">
+        <option value="contains">contains</option>
+        <option value="regex">regex</option>
+      </select>
+      <input class="ck-pattern mono" placeholder="admin" spellcheck="false" aria-label="Pattern">
+      <span class="ck-actions">
+        <button type="button" class="ck-up" title="Move up">↑</button>
+        <button type="button" class="ck-down" title="Move down">↓</button>
+        <button type="button" class="ck-remove danger" title="Remove">✕</button>
+      </span>
+    </div>
+  </template>
+
+  <dialog id="importDialog">
+    <h2>Import labels</h2>
+    <p id="importSummary"></p>
+    <p class="muted small"><strong>Merge</strong> adds the labels in the file and updates any you already have. <strong>Replace</strong> deletes your current labels first.</p>
+    <footer class="dialog-actions">
+      <button id="importCancel" type="button">Cancel</button>
+      <button id="importReplace" type="button" class="danger">Replace all</button>
+      <button id="importMerge" type="button" class="primary">Merge</button>
+    </footer>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="shared.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
