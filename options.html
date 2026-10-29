@@ -26,7 +26,62 @@
     <ul id="list" class="rules"></ul>
     <p id="empty" class="empty" hidden>No labels yet. Click <strong>+ New label</strong> to make one.</p>
     <p class="muted small">Labels are checked from top to bottom. The first one that matches wins.</p>
+
+    <section class="switchers">
+      <div class="section-head">
+        <div>
+          <h2>Environment switcher</h2>
+          <p class="muted small">Jump to the same page in another environment from the toolbar popup, or hold <kbd>Ctrl</kbd> while pointing at the in-page label.</p>
+        </div>
+        <button id="addSwitcher" type="button">+ New switcher</button>
+      </div>
+      <ul id="switcherList" class="rules"></ul>
+      <p id="switcherEmpty" class="empty small" hidden>No switchers yet.</p>
+    </section>
   </main>
+
+  <dialog id="envEditor">
+    <form id="envForm" method="dialog" novalidate>
+      <h2 id="envTitle">New switcher</h2>
+      <label>Name
+        <input name="name" required placeholder="My app">
+      </label>
+
+      <fieldset>
+        <legend>Environments</legend>
+        <p class="muted small hint">One address per environment, e.g. <code>dr.dk</code>. Use <code>*</code> for a part that stays the same, like <code>*.example.com</code>.
+          Everything after the address (path, query, #) is kept. Add a path to the address if your environments differ by path, e.g. <code>example.com/staging</code>.</p>
+        <div id="envRows" class="checks-list"></div>
+        <button id="addEnv" type="button" class="add-check">+ Add environment</button>
+        <label class="inline"><input type="checkbox" name="keepPath" checked> Keep the rest of the address (path, query, #)</label>
+        <small class="muted">Turn this off to always go to the address as written, e.g. a site's front page.</small>
+      </fieldset>
+
+      <fieldset>
+        <legend>Test</legend>
+        <input name="testUrl" type="url" placeholder="Paste a URL from one of the environments…">
+        <div id="envTest" class="test-result muted"></div>
+      </fieldset>
+
+      <footer class="dialog-actions">
+        <button id="envDelete" type="button" class="danger left">Delete</button>
+        <button id="envCancel" type="button">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <template id="envRow">
+    <div class="check-row env-row">
+      <input class="env-name" placeholder="Production" aria-label="Environment name">
+      <input class="env-template mono" placeholder="*.example.com" spellcheck="false" aria-label="Address">
+      <span class="ck-actions">
+        <button type="button" class="ck-up" title="Move up">↑</button>
+        <button type="button" class="ck-down" title="Move down">↓</button>
+        <button type="button" class="ck-remove danger" title="Remove">✕</button>
+      </span>
+    </div>
+  </template>
 
   <dialog id="editor">
     <form id="form" method="dialog" novalidate>
@@ -63,9 +118,20 @@
       <fieldset>
         <legend>Look</legend>
         <div id="shapes" class="shapes"></div>
-        <div class="field">
-          <span class="field-label">Color</span>
-          <input name="color" type="color" value="#d93025">
+        <div class="look-fields">
+          <div class="field">
+            <span class="field-label">Color</span>
+            <input name="color" type="color" value="#d93025">
+          </div>
+          <div class="field">
+            <span class="field-label">Text color</span>
+            <input name="textColor" type="color" value="#ffffff">
+            <label class="inline small"><input type="checkbox" name="autoTextColor" checked> Automatic</label>
+          </div>
+          <div class="field">
+            <span class="field-label">In-page size</span>
+            <select name="pageSize"></select>
+          </div>
         </div>
       </fieldset>
 
@@ -144,5 +210,6 @@
 
   <script src="shared.js"></script>
   <script src="options.js"></script>
+  <script src="options-env.js"></script>
 </body>
 </html>

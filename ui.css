@@ -198,8 +198,7 @@ section { margin-bottom: 24px; }
 .pv-page-bar { height: 14px; background: var(--chip); border-bottom: 1px solid var(--border); }
 .pv-page-line { height: 6px; margin: 12px 12px 0; border-radius: 3px; background: var(--chip); }
 .pv-page-line.short { width: 50%; }
-.pv-page .pill { position: absolute; font-size: 10px; padding: 3px 7px; }
-.pv-page .pill.arrow { padding: 3px 12px; }
+.pv-page .pill { position: absolute; }
 
 /* Test results */
 .test-result { margin: 0; padding: 8px 10px; border-radius: 6px; line-height: 1.6; }
@@ -228,3 +227,19 @@ section { margin-bottom: 24px; }
 /* Popup */
 #match { margin-bottom: 12px; }
 .popup-actions { display: grid; gap: 6px; }
+
+/* Environment switcher */
+.rule.switcher { grid-template-columns: 1fr auto; }
+.env-row { grid-template-columns: 1fr 1.6fr auto; }
+.env-targets { margin: 4px 0 0; padding-left: 18px; font-weight: normal; }
+.env-targets code { word-break: break-all; }
+.switch-head { margin: 4px 0 4px !important; }
+.switch-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.switch-row button { flex: 1; padding: 5px 8px; font-weight: 600; }
+.switch-row button:disabled { opacity: 1; cursor: default; outline: 2px solid var(--text); outline-offset: 1px; }
+
+/* Look: color, text color, size */
+.look-fields { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; }
+.look-fields select { width: auto; }
+.look-fields label.inline { font-size: 12px; color: var(--muted); }
+input[type=color]:disabled { opacity: .45; cursor: default; }
