@@ -17,6 +17,20 @@ Places to show the label:
 - **Toolbar badge**: the extension icon becomes the shape, with up to 4 characters in the badge
 - **In-page label**: a small label pinned to a corner of the page (fades out when you hover over it)
 
+## Environment switcher
+
+Jump to the same page in another environment from the toolbar popup. Define one address per environment, with `*` for the part that stays the same:
+
+| Environment | Address |
+|---|---|
+| Production | `*.example.com` |
+| Staging | `*.staging.example.com` |
+| Dev | `*.example.dev` |
+
+On `https://app.example.com/orders?id=7`, the popup offers Staging (`https://app.staging.example.com/orders?id=7`) and Dev. The path, query and `#` part are kept. Click to switch the current tab, or Ctrl/middle-click to open it in a new tab.
+
+If the label is shown in the page, hold **Ctrl** while pointing at it to open the same switch buttons right there. The menu stays open until you move the mouse away (or press Esc). Ctrl-click or middle-click opens the other environment in a new tab, next to the current one.
+
 ## Install
 
 1. Open `chrome://extensions`

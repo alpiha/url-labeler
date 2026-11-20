@@ -11,7 +11,7 @@ document.head.append(h('style', { textContent: UL.PILL_CSS }));
 const form = $('#form');
 const f = form.elements;
 const editor = $('#editor');
-let state = { rules: [] };
+let state = { rules: [], envGroups: [] };
 let editingId = null; // null = new label
 let pendingImport = null;
 
@@ -33,6 +33,7 @@ function render() {
   $('#list').replaceChildren(...state.rules.map(renderRow));
   $('#empty').hidden = state.rules.length > 0;
   runMainTest();
+  renderSwitchers(); // options-env.js
 }
 
 function renderRow(rule, i) {
@@ -170,6 +171,9 @@ function buildEditorControls() {
   f.pagePosition.replaceChildren(
     ...Object.entries(UL.POSITIONS).map(([key, label]) => h('option', { value: key, textContent: label }))
   );
+  f.pageSize.replaceChildren(
+    ...Object.entries(UL.SIZES).map(([key, s]) => h('option', { value: key, textContent: s.label }))
+  );
 }
 
 function openEditor(rule, isNew = false) {
@@ -186,6 +190,9 @@ function openEditor(rule, isNew = false) {
   rule.texts.forEach((t) => addCheckRow(t));
   f.shape.value = rule.shape;
   f.color.value = rule.color;
+  f.autoTextColor.checked = !rule.textColor;
+  f.textColor.value = rule.textColor || UL.textColor(rule.color);
+  f.pageSize.value = rule.pageSize;
   for (const key of Object.keys(UL.PLACEMENTS)) f[`pl-${key}`].checked = rule.placements[key];
   f.pagePosition.value = rule.pagePosition;
   f.enabled.checked = rule.enabled;
@@ -214,6 +221,8 @@ function readForm() {
     })),
     shape: f.shape.value,
     color: f.color.value,
+    textColor: f.autoTextColor.checked ? '' : f.textColor.value,
+    pageSize: f.pageSize.value,
     placements,
     pagePosition: f.pagePosition.value,
     enabled: f.enabled.checked,
@@ -270,9 +279,12 @@ function refreshEditor() {
   });
 
   $('#positionRow').hidden = !rule.placements.page;
+  // While automatic, the swatch shows (and later starts from) the automatic color.
+  f.textColor.disabled = f.autoTextColor.checked;
+  if (f.autoTextColor.checked) f.textColor.value = UL.textColor(rule.color);
   form.querySelectorAll('.shape-opt .pill').forEach((p) => {
     p.style.background = rule.color;
-    p.style.color = UL.textColor(rule.color);
+    p.style.color = UL.labelTextColor(rule);
   });
 
   const result = testEditor(rule, url);
@@ -305,10 +317,12 @@ function refreshEditor() {
   badge.hidden = !label.placements.badge;
   badge.textContent = UL.badgeText(label);
   badge.style.background = label.color;
-  badge.style.color = UL.textColor(label.color);
+  badge.style.color = UL.labelTextColor(label);
 
+  // The mini page is drawn at about 80% scale.
   const pill = $('#pvPill');
   UL.fillPill(pill, label);
+  pill.style.fontSize = `${Math.round(UL.SIZES[label.pageSize].px * 0.8)}px`;
   const [v, hz] = label.pagePosition.split('-');
   Object.assign(pill.style, { top: '', bottom: '', left: '', right: '', [v]: v === 'top' ? '20px' : '6px', [hz]: '6px' });
 
@@ -380,7 +394,7 @@ $('#importFile').onchange = async (e) => {
     toast(err.message, true);
     return;
   }
-  $('#importSummary').textContent = `"${file.name}" contains ${plural(pendingImport.rules.length, 'label')}.`;
+  $('#importSummary').textContent = `"${file.name}" contains ${plural(pendingImport.rules.length, 'label')} and ${plural(pendingImport.envGroups.length, 'environment switcher')}.`;
   $('#importDialog').showModal();
 };
 
@@ -415,7 +429,7 @@ $('#addBtn').onclick = () => openEditor(UL.normalizeRule({}), true);
 $('#testUrl').addEventListener('input', runMainTest);
 
 chrome.storage.onChanged.addListener(async (changes, area) => {
-  if (area !== 'local' || !changes.rules) return;
+  if (area !== 'local' || !(changes.rules || changes.envGroups)) return;
   state = await UL.loadState();
   render();
 });

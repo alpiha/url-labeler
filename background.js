@@ -62,7 +62,7 @@ async function updateTab(tab) {
 
   if (showBadge) {
     await action('setBadgeBackgroundColor', { tabId, color: label.color });
-    await action('setBadgeTextColor', { tabId, color: UL.textColor(label.color) });
+    await action('setBadgeTextColor', { tabId, color: UL.labelTextColor(label) });
   }
   await action('setBadgeText', { tabId, text: showBadge ? UL.badgeText(label) : '' });
   await action('setTitle', {
@@ -80,3 +80,9 @@ async function injectIntoOpenTabs() {
       .catch(() => {});
   }
 }
+
+// The in-page switch menu asks for new tabs here, so they open next to the current tab like the popup's.
+chrome.runtime.onMessage.addListener((msg, sender) => {
+  if (msg?.type !== 'openTab' || !sender.tab || !/^https?:\/\//.test(msg.url)) return;
+  chrome.tabs.create({ url: msg.url, index: sender.tab.index + 1, openerTabId: sender.tab.id, active: false });
+});

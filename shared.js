@@ -25,13 +25,21 @@ var UL = (() => {
     'bottom-right': 'Bottom right',
   };
 
+  // Font size of the in-page label.
+  const SIZES = {
+    small: { label: 'Small', px: 11 },
+    medium: { label: 'Medium', px: 12 },
+    large: { label: 'Large', px: 15 },
+    xlarge: { label: 'Extra large', px: 19 },
+  };
+
   const PILL_CSS = `
 .pill{display:inline-flex;align-items:center;box-sizing:border-box;font:600 12px/1 system-ui,-apple-system,"Segoe UI",sans-serif;
-  padding:5px 10px;white-space:nowrap;letter-spacing:.02em;box-shadow:0 1px 4px rgba(0,0,0,.35);transition:opacity .15s}
-.pill.square{border-radius:3px}
+  padding:.42em .85em;white-space:nowrap;letter-spacing:.02em;box-shadow:0 1px 4px rgba(0,0,0,.35);transition:opacity .15s}
+.pill.square{border-radius:.25em}
 .pill.round{border-radius:999px}
-.pill.arrow{padding:5px 16px;box-shadow:none;
-  clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,10px 100%,0 50%)}
+.pill.arrow{padding:.42em 1.35em;box-shadow:none;
+  clip-path:polygon(.85em 0,calc(100% - .85em) 0,100% 50%,calc(100% - .85em) 100%,.85em 100%,0 50%)}
 `;
 
   function newId() {
@@ -64,12 +72,14 @@ var UL = (() => {
       shape: SHAPES[r.shape] ? r.shape : 'square',
       color: /^#[0-9a-f]{6}$/i.test(r.color) ? r.color.toLowerCase() : '#d93025',
       placements: {
-        title: flag(p.title, true),
-        favicon: flag(p.favicon, false),
+        title: flag(p.title, false),
+        favicon: flag(p.favicon, true),
         badge: flag(p.badge, true),
         page: flag(p.page, false),
       },
       pagePosition: POSITIONS[r.pagePosition] ? r.pagePosition : 'bottom-left',
+      textColor: /^#[0-9a-f]{6}$/i.test(r.textColor) ? r.textColor.toLowerCase() : '', // '' = automatic
+      pageSize: SIZES[r.pageSize] ? r.pageSize : 'medium',
     };
   }
 
@@ -84,9 +94,24 @@ var UL = (() => {
       .map((l) => ({ ...l, defaultText: l.label ?? '', texts }));
   }
 
+  function normalizeEnvGroup(g = {}) {
+    return {
+      id: typeof g.id === 'string' && g.id ? g.id : newId(),
+      name: String(g.name ?? ''),
+      keepPath: g.keepPath !== false,
+      envs: (Array.isArray(g.envs) ? g.envs : [])
+        .filter(isObject)
+        .map((e) => ({ name: String(e.name ?? ''), template: String(e.template ?? '').trim() })),
+    };
+  }
+
   function normalizeState(data = {}) {
     const rules = Array.isArray(data.rules) ? data.rules : Array.isArray(data.looks) ? migrateV2(data) : [];
-    return { rules: rules.filter(isObject).map(normalizeRule) };
+    const envGroups = Array.isArray(data.envGroups) ? data.envGroups : [];
+    return {
+      rules: rules.filter(isObject).map(normalizeRule),
+      envGroups: envGroups.filter(isObject).map(normalizeEnvGroup),
+    };
   }
 
   function hasPlacement(rule) {
@@ -139,6 +164,8 @@ var UL = (() => {
       color: rule.color,
       placements: rule.placements,
       pagePosition: rule.pagePosition,
+      textColor: rule.textColor,
+      pageSize: rule.pageSize,
     };
   }
 
@@ -150,6 +177,72 @@ var UL = (() => {
       if (text) return { rule, check, label: makeLabel(rule, text) };
     }
     return null;
+  }
+
+  // ---- Environment switcher ----
+  // An environment template is a host, optionally followed by a path prefix, where `*` marks the
+  // part that stays the same: "*.example.com" or "example.com/staging/*". Everything after the
+  // template (rest of the path, query, hash) is kept when switching.
+
+  const escapeRe = (s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+  const wildcard = (s) => s.split('*').map(escapeRe).join('([^/]*?)');
+
+  function matchTemplate(template, url) {
+    let u;
+    try {
+      u = new URL(url);
+    } catch {
+      return null;
+    }
+    if (!template || !/^https?:$/.test(u.protocol)) return null;
+    const slash = template.indexOf('/');
+    const hostPart = slash < 0 ? template : template.slice(0, slash);
+    const pathPart = slash < 0 ? '' : template.slice(slash);
+
+    // "dr.dk" also matches "www.dr.dk".
+    const hostRe = new RegExp(`^${wildcard(hostPart)}$`, 'i');
+    const host = hostRe.exec(u.host) || hostRe.exec(u.host.replace(/^www\./i, ''));
+    if (!host) return null;
+    const parts = host.slice(1);
+    let rest = u.pathname + u.search + u.hash;
+    if (pathPart) {
+      // A trailing * in the path takes a whole segment.
+      const path = new RegExp(`^${wildcard(pathPart).replace(/\(\[\^\/\]\*\?\)$/, '([^/]*)')}`, 'i').exec(rest);
+      if (!path) return null;
+      parts.push(...path.slice(1));
+      rest = rest.slice(path[0].length);
+    }
+    return { parts, rest, protocol: u.protocol };
+  }
+
+  function fillTemplate(template, match, keepPath = true) {
+    let i = 0;
+    let target = template.replace(/\*/g, () => match.parts[i++] ?? '');
+    let rest = keepPath ? match.rest : '';
+    if (!rest && !target.includes('/')) rest = '/';
+    if (rest && !rest.startsWith('/') && !target.endsWith('/') && !/^[?#]/.test(rest)) rest = `/${rest}`;
+    if (target.endsWith('/') && rest.startsWith('/')) rest = rest.slice(1);
+    return `${match.protocol}//${target}${rest}`;
+  }
+
+  // For each switcher group the URL belongs to: the current environment and the URL of every environment.
+  function envSwitches(state, url) {
+    const out = [];
+    for (const group of state.envGroups || []) {
+      const current = group.envs.findIndex((e) => matchTemplate(e.template, url));
+      if (current < 0) continue;
+      const match = matchTemplate(group.envs[current].template, url);
+      out.push({
+        group,
+        current,
+        targets: group.envs.map((e, i) => ({
+          name: e.name,
+          url: i === current ? url : fillTemplate(e.template, match, group.keepPath),
+          current: i === current,
+        })),
+      });
+    }
+    return out;
   }
 
   function chars(s, n) {
@@ -209,7 +302,7 @@ var UL = (() => {
       fontSize *= maxWidth / width;
       ctx.font = `bold ${fontSize}px system-ui, "Segoe UI", sans-serif`;
     }
-    ctx.fillStyle = textColor(label.color);
+    ctx.fillStyle = labelTextColor(label);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, size / 2, size / 2 + fontSize * 0.06);
@@ -241,25 +334,39 @@ var UL = (() => {
     return canvas.toDataURL('image/png');
   }
 
-  function fillPill(el, label) {
+  // The label's own text color, or black/white for contrast when it's automatic.
+  function labelTextColor(label) {
+    return label.textColor || textColor(label.color);
+  }
+
+  // `sized` applies the in-page font size (the in-page label itself); other uses keep the default size.
+  function fillPill(el, label, sized = false) {
     el.className = `pill ${label.shape}`;
     el.textContent = label.displayName;
     el.style.background = label.color;
-    el.style.color = textColor(label.color);
+    el.style.color = labelTextColor(label);
+    el.style.fontSize = sized ? `${(SIZES[label.pageSize] || SIZES.medium).px}px` : '';
   }
 
   async function loadState() {
-    return normalizeState(await chrome.storage.local.get(['rules', 'looks', 'texts']));
+    return normalizeState(await chrome.storage.local.get(['rules', 'envGroups', 'looks', 'texts']));
   }
 
   async function saveState(state) {
-    await chrome.storage.local.set({ rules: normalizeState(state).rules });
+    const s = normalizeState(state);
+    await chrome.storage.local.set({ rules: s.rules, envGroups: s.envGroups });
     await chrome.storage.local.remove(['looks', 'texts']);
   }
 
   function buildExport(state) {
     return JSON.stringify(
-      { format: 'url-labeler', version: 3, exportedAt: new Date().toISOString(), rules: state.rules },
+      {
+        format: 'url-labeler',
+        version: 3,
+        exportedAt: new Date().toISOString(),
+        rules: state.rules,
+        envGroups: state.envGroups,
+      },
       null,
       2
     );
@@ -274,27 +381,33 @@ var UL = (() => {
       throw new Error('The file is not valid JSON.');
     }
     if (Array.isArray(data)) data = { rules: data };
-    if (!isObject(data) || !(Array.isArray(data.rules) || Array.isArray(data.looks))) {
-      throw new Error('No rules found in the file.');
+    if (!isObject(data) || !['rules', 'looks', 'envGroups'].some((k) => Array.isArray(data[k]))) {
+      throw new Error('No labels or environment switchers found in the file.');
     }
     return normalizeState(data);
   }
 
-  // Rules with the same id are replaced, new ones are added.
+  // Items with the same id are replaced, new ones are added.
   function mergeState(current, incoming) {
-    const rules = [...current.rules];
-    for (const rule of incoming.rules) {
-      const i = rules.findIndex((r) => r.id === rule.id);
-      if (i >= 0) rules[i] = rule;
-      else rules.push(rule);
-    }
-    return { rules };
+    const merge = (a, b) => {
+      const out = [...a];
+      for (const item of b) {
+        const i = out.findIndex((x) => x.id === item.id);
+        if (i >= 0) out[i] = item;
+        else out.push(item);
+      }
+      return out;
+    };
+    return {
+      rules: merge(current.rules, incoming.rules),
+      envGroups: merge(current.envGroups, incoming.envGroups),
+    };
   }
 
   return {
-    SHAPES, PLACEMENTS, POSITIONS, PILL_CSS,
-    newId, normalizeRule, normalizeTextCheck, normalizeState, hasPlacement, regexError, find, matches, pickText,
-    makeLabel, resolve, titlePrefix, badgeText, iconText, textColor, drawIcon, iconImageData, faviconDataUrl, fillPill,
+    SHAPES, PLACEMENTS, POSITIONS, SIZES, PILL_CSS,
+    newId, normalizeRule, normalizeTextCheck, normalizeEnvGroup, normalizeState, matchTemplate, envSwitches, hasPlacement, regexError, find, matches, pickText,
+    makeLabel, resolve, titlePrefix, badgeText, iconText, textColor, labelTextColor, drawIcon, iconImageData, faviconDataUrl, fillPill,
     loadState, saveState, buildExport, parseImport, mergeState,
   };
 })();
