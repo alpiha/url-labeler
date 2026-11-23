@@ -42,7 +42,10 @@
 
   <dialog id="envEditor">
     <form id="envForm" method="dialog" novalidate>
-      <h2 id="envTitle">New switcher</h2>
+      <div class="dialog-head">
+        <h2 id="envTitle">New switcher</h2>
+        <button type="button" class="close" data-close title="Close" aria-label="Close">✕</button>
+      </div>
       <label>Name
         <input name="name" required placeholder="My app">
       </label>
@@ -85,7 +88,10 @@
 
   <dialog id="editor">
     <form id="form" method="dialog" novalidate>
-      <h2 id="editorTitle">New label</h2>
+      <div class="dialog-head">
+        <h2 id="editorTitle">New label</h2>
+        <button type="button" class="close" data-close title="Close" aria-label="Close">✕</button>
+      </div>
 
       <label>Name
         <input name="name" required placeholder="Production">
@@ -103,44 +109,95 @@
         <p id="patternError" class="error" hidden></p>
       </fieldset>
 
-      <fieldset>
-        <legend>Text</legend>
-        <p class="muted small hint">Checked from top to bottom. The first check that matches the URL sets the text.
-          Leave <em>Show</em> empty to show the matched text itself (for a regex, its first group).</p>
-        <div id="checks" class="checks-list"></div>
-        <button id="addCheck" type="button" class="add-check">+ Add text check</button>
-        <label class="default-text">Default text
-          <input name="defaultText" placeholder="PROD">
-          <small>Used when no check matches. Leave empty to show no label in that case.</small>
-        </label>
-      </fieldset>
+      <div class="group">
+        <h3>Label</h3>
+        <fieldset>
+          <legend>Text</legend>
+          <p class="muted small hint">Checked from top to bottom. The first check that matches the URL sets the text.
+            Leave <em>Show</em> empty to show the matched text itself (for a regex, its first group).</p>
+          <div id="checks" class="checks-list"></div>
+          <button id="addCheck" type="button" class="add-check">+ Add text check</button>
+          <label class="default-text">Default text
+            <input name="defaultText" placeholder="PROD">
+            <small>Used when no check matches. Leave empty to show no label in that case.</small>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Look</legend>
+          <div id="shapes" class="shapes"></div>
+          <div class="look-fields">
+            <div class="field">
+              <span class="field-label">Color</span>
+              <input name="color" type="color" value="#d93025">
+            </div>
+            <div class="field">
+              <span class="field-label">Text color</span>
+              <input name="textColor" type="color" value="#ffffff">
+              <label class="inline small"><input type="checkbox" name="autoTextColor" checked> Automatic</label>
+            </div>
+            <div class="field">
+              <span class="field-label">In-page size</span>
+              <select name="pageSize"></select>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="group">
+        <h3><label class="inline"><input type="checkbox" name="headerEnabled"> Header</label></h3>
+        <p class="muted small hint">A second, smaller line read from the URL, so tabs on the same site can be told apart.
+          E.g. on <code>…/all-topics/TOPIC_NAME/messages</code>, <em>path part after</em> <code>all-topics</code> with the text <code>TOPIC:</code> shows <strong>TOPIC: TOPIC_NAME</strong>.</p>
+        <div id="headerBody" class="header-body">
+          <fieldset>
+            <legend>Text</legend>
+            <div id="headerChecks" class="checks-list"></div>
+            <button id="addHeaderCheck" type="button" class="add-check">+ Add header check</button>
+            <p class="muted small hint">Checked from top to bottom; the first one that matches is used.
+              <em>URL contains</em> shows its text as is (e.g. <code>/drtv</code> → <code>TV</code>).
+              <em>Path part after / before</em> takes the part of the address next to the pattern (the host counts as the first part); the text goes before that value, or use <code>{}</code> to put it somewhere else. Empty text shows just the value.</p>
+          </fieldset>
+
+          <fieldset>
+            <legend>Look</legend>
+            <div class="look-fields">
+              <div class="field">
+                <span class="field-label">Text color</span>
+                <input name="headerTextColor" type="color" value="#ffffff">
+                <label class="inline small"><input type="checkbox" name="headerAutoTextColor" checked> Automatic</label>
+              </div>
+              <div class="field">
+                <span class="field-label">Size</span>
+                <select name="headerSize"></select>
+              </div>
+              <label class="inline"><input type="checkbox" name="headerItalic"> Italic</label>
+            </div>
+            <small class="muted">Used in the in-page label and the toolbar popup. Tab titles are plain text.</small>
+          </fieldset>
+        </div>
+      </div>
 
       <fieldset>
-        <legend>Look</legend>
-        <div id="shapes" class="shapes"></div>
-        <div class="look-fields">
-          <div class="field">
-            <span class="field-label">Color</span>
-            <input name="color" type="color" value="#d93025">
-          </div>
-          <div class="field">
-            <span class="field-label">Text color</span>
-            <input name="textColor" type="color" value="#ffffff">
-            <label class="inline small"><input type="checkbox" name="autoTextColor" checked> Automatic</label>
-          </div>
-          <div class="field">
-            <span class="field-label">In-page size</span>
-            <select name="pageSize"></select>
+        <legend>Display</legend>
+        <div class="display-row">
+          <span class="display-head">Label</span>
+          <div id="placements" class="checks"></div>
+          <label id="positionRow" class="inline">In-page position
+            <select name="pagePosition"></select>
+          </label>
+        </div>
+        <div id="headerDisplay" class="display-row">
+          <span class="display-head">Header</span>
+          <div class="checks">
+            <label><input type="checkbox" name="headerTitle"> Tab title &amp; address-bar suggestions</label>
+            <label><input type="checkbox" name="headerPage"> In-page label</label>
           </div>
         </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Show it in</legend>
-        <div id="placements" class="checks"></div>
-        <label id="positionRow" class="inline">In-page position
-          <select name="pagePosition"></select>
-        </label>
+        <div class="display-row">
+          <span class="display-head">Other</span>
+          <label class="inline"><input type="checkbox" name="replaceTitle"> Remove original title</label>
+          <small class="muted">Drops the site's own tab title (e.g. a tab that always says "Swagger UI"). Needs the label or header in the tab title.</small>
+        </div>
       </fieldset>
 
       <fieldset>
@@ -148,15 +205,19 @@
         <input name="testUrl" type="url" placeholder="Paste a URL to test this label…">
         <p id="editorTest" class="test-result"></p>
         <div id="preview" class="preview">
-          <div class="pv-item" data-placement="title favicon">
+          <div class="pv-item" data-placement="title favicon header-title">
             <span class="pv-caption">Tab</span>
             <div class="pv-tab"><canvas id="pvFavicon" width="32" height="32"></canvas><span id="pvTitle"></span></div>
+          </div>
+          <div class="pv-item" data-placement="title favicon header-title">
+            <span class="pv-caption">Address-bar suggestion</span>
+            <div class="pv-suggest"><canvas id="pvSuggestIcon" width="32" height="32"></canvas><span id="pvSuggestTitle"></span><span id="pvSuggestUrl" class="pv-url"></span></div>
           </div>
           <div class="pv-item" data-placement="badge">
             <span class="pv-caption">Toolbar</span>
             <div class="pv-toolbar"><canvas id="pvIcon" width="32" height="32"></canvas><span id="pvBadge" class="pv-badge"></span></div>
           </div>
-          <div class="pv-item" data-placement="page">
+          <div class="pv-item" data-placement="page header-page">
             <span class="pv-caption">In page</span>
             <div class="pv-page">
               <div class="pv-page-bar"></div>
@@ -187,6 +248,20 @@
         <option value="regex">regex</option>
       </select>
       <input class="ck-pattern mono" placeholder="admin" spellcheck="false" aria-label="Pattern">
+      <span class="ck-actions">
+        <button type="button" class="ck-up" title="Move up">↑</button>
+        <button type="button" class="ck-down" title="Move down">↓</button>
+        <button type="button" class="ck-remove danger" title="Remove">✕</button>
+      </span>
+    </div>
+  </template>
+
+  <template id="headerRow">
+    <div class="check-row">
+      <input class="ck-text" placeholder="TOPIC:" aria-label="Text">
+      <span class="ck-arrow" aria-hidden="true">←</span>
+      <select class="ck-type" aria-label="Where to find the value"></select>
+      <input class="ck-pattern mono" placeholder="all-topics" spellcheck="false" aria-label="Pattern">
       <span class="ck-actions">
         <button type="button" class="ck-up" title="Move up">↑</button>
         <button type="button" class="ck-down" title="Move down">↓</button>

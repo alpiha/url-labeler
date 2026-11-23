@@ -5,8 +5,17 @@
 
   let state = UL.normalizeState();
   let label = null;
-  // Kept on the page so a re-injected script (after an extension reload) can strip the old prefix.
-  let titlePrefix = root.dataset.urlLabelerPrefix || '';
+  // The title we last set and the site's own title under it. Kept on the page so a re-injected
+  // script (after an extension reload) can restore the site's title.
+  let written = root.dataset.urlLabelerTitle || '';
+  let baseTitle = root.dataset.urlLabelerBase || '';
+  // Left by version 0.1, which only added a prefix.
+  const oldPrefix = root.dataset.urlLabelerPrefix;
+  if (oldPrefix && document.title.startsWith(oldPrefix)) {
+    written = document.title;
+    baseTitle = document.title.slice(oldPrefix.length);
+  }
+  delete root.dataset.urlLabelerPrefix;
   let lastUrl = location.href;
   let favicon = { key: '', url: '' };
   let pillHost = null;
@@ -25,18 +34,27 @@
 
   // ---- Tab title -------------------------------------------------------
 
-  function setPrefix(prefix) {
-    const title = document.title;
-    const base = titlePrefix && title.startsWith(titlePrefix) ? title.slice(titlePrefix.length) : title;
-    titlePrefix = prefix;
-    if (prefix) root.dataset.urlLabelerPrefix = prefix;
-    else delete root.dataset.urlLabelerPrefix;
-    if (document.title !== prefix + base) document.title = prefix + base;
-  }
+  const collapse = (s) => s.replace(/\s+/g, ' ').trim();
 
-  // Sites like YouTube rewrite their title constantly; put the prefix back each time.
+  // Any title other than the one we set is the site's own (sites like YouTube rewrite it
+  // constantly), so it becomes the new base and our version is put back on top of it.
   function enforceTitle() {
-    if (titlePrefix && !document.title.startsWith(titlePrefix)) document.title = titlePrefix + document.title;
+    const current = document.title;
+    if (current !== written) baseTitle = current;
+    const want = label ? UL.composeTitle(label, baseTitle) : baseTitle;
+    if (want === baseTitle) {
+      written = '';
+      delete root.dataset.urlLabelerTitle;
+      delete root.dataset.urlLabelerBase;
+      if (current !== want) document.title = want;
+      return;
+    }
+    // Compare and remember the title as the browser reads it back (whitespace collapsed).
+    // Otherwise our own title looks like a site change and we'd rewrite it forever.
+    if (current !== collapse(want)) document.title = want;
+    written = document.title;
+    root.dataset.urlLabelerTitle = written;
+    root.dataset.urlLabelerBase = baseTitle;
   }
 
   // ---- Favicon ---------------------------------------------------------
@@ -229,9 +247,7 @@
   function update() {
     menuOpen = false; // its buttons belong to the previous URL or settings
     label = UL.resolve(state, location.href)?.label || null;
-    const prefix = label?.placements.title ? UL.titlePrefix(label) : '';
-    if (prefix !== titlePrefix) setPrefix(prefix);
-    else enforceTitle();
+    enforceTitle();
     enforceFavicon();
     enforcePill();
   }

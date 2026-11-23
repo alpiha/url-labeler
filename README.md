@@ -17,6 +17,27 @@ Places to show the label:
 - **Toolbar badge**: the extension icon becomes the shape, with up to 4 characters in the badge
 - **In-page label**: a small label pinned to a corner of the page (fades out when you hover over it)
 
+## Header
+
+A label can also show a **header**: a second, smaller line read from the URL, so several tabs on the same site can be told apart. Turn it on per label and add header checks, checked from top to bottom:
+
+| Find the value in | Pattern | Text | URL | Header |
+|---|---|---|---|---|
+| path part after | `all-topics` | `TOPIC:` | `…/all-topics/TOPIC_NAME/messages` | `TOPIC: TOPIC_NAME` |
+| path part after | `consumer-groups` | `CG:` | `…/consumer-groups/CONSUMER_GROUP_NAME` | `CG: CONSUMER_GROUP_NAME` |
+| path part before | `swagger-ui` | | `…/SERVICE_NAME/swagger-ui/index.html` | `SERVICE_NAME` |
+| regex | `svc=([^&]+)` | | `…?svc=payments` | `payments` |
+
+The text goes before the value; `{}` puts the value somewhere else (`{} (API)`).
+
+The header can be shown in the **tab title** (`[PROD] TOPIC: TOPIC_NAME · Kafbat UI`) and under the **in-page label** in small italics, each turned on separately.
+
+The header has its own **look** for the in-page label: text color (light grey by default, dark grey on light label colors), size relative to the label, and italics.
+
+**Remove original title** (under *Display → Other*) drops the site's own tab title and keeps only the label and/or header, which helps on pages like Swagger UI whose tabs all say "Swagger UI". It can only be turned on while the label or the header is shown in the tab title.
+
+Address-bar suggestions show the title the browser saved in its history, so they usually show the header too. The browser decides when to save it, so a page that sets its title late may be saved without it.
+
 ## Environment switcher
 
 Jump to the same page in another environment from the toolbar popup. Define one address per environment, with `*` for the part that stays the same:

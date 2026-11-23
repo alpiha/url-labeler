@@ -129,6 +129,11 @@ label.inline select { width: auto; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .seg, .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; }
 .seg label, .checks label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+/* Dialog title with the ✕ on the right */
+.dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dialog-head h2 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dialog-head .close { flex: none; border: 0; background: none; padding: 4px 8px; font-size: 16px; line-height: 1; color: var(--muted); }
+.dialog-head .close:hover { color: var(--text); background: var(--chip); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .dialog-actions .left { margin-right: auto; }
 
@@ -223,6 +228,36 @@ section { margin-bottom: 24px; }
 .ck-actions button { padding: 4px 7px; }
 .add-check { justify-self: start; }
 .default-text { margin-top: 4px; }
+
+/* Editor groups: Label (text + look) and Header */
+.group {
+  display: grid; gap: 10px; padding: 12px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+}
+.group > h3 { margin: 0; font-size: 15px; }
+.group > h3 label.inline { gap: 8px; cursor: pointer; }
+.header-body { display: grid; gap: 8px; }
+.header-body[hidden] { display: none; }
+
+/* Display: one row for the label, one for the header */
+.display-row { display: grid; gap: 6px; }
+.display-row + .display-row { border-top: 1px solid var(--border); padding-top: 8px; }
+.display-head { font-weight: 600; font-size: 13px; }
+.display-row.off { opacity: .5; }
+.display-row.off label:has(> input:disabled) { opacity: 1; } /* the row is already faded */
+label:has(> input:disabled) { opacity: .5; }
+
+/* Address-bar suggestion preview */
+.pv-suggest {
+  display: flex; align-items: center; gap: 8px;
+  width: 300px; padding: 6px 10px; border-radius: 6px;
+  background: var(--bg); border: 1px solid var(--border);
+  font-size: 12px; white-space: nowrap; overflow: hidden;
+}
+.pv-suggest canvas { width: 16px; height: 16px; flex: none; }
+.pv-suggest span { overflow: hidden; text-overflow: ellipsis; }
+.pv-suggest .pv-url { color: var(--accent); flex: 1 1 0; min-width: 0; }
 
 /* Popup */
 #match { margin-bottom: 12px; }
