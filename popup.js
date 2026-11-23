@@ -61,10 +61,8 @@ function renderSwitches(tab, switches, state) {
   if (res) {
     const pill = document.createElement('span');
     UL.fillPill(pill, res.label);
-    const name = document.createElement('span');
-    name.className = 'muted small';
-    name.textContent = ` ${res.rule.name}`;
-    $('#match').replaceChildren(pill, name);
+    pill.title = `Label: ${res.rule.name}`;
+    $('#match').replaceChildren(pill);
     $('#editBtn').hidden = false;
     $('#editBtn').onclick = () => openOptions({ edit: res.rule.id, url });
   } else {

@@ -56,6 +56,8 @@ var UL = (() => {
 .pill.two{flex-direction:column;align-items:flex-start;gap:.3em;line-height:1.1}
 .pill.two.arrow{align-items:center}
 .pill .sub{font-weight:400}
+.pill{max-width:100%}
+.pill.two>span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 `;
 
   function newId() {
