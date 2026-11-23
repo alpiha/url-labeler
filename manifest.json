@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "URL Labeler",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Label tabs whose URL contains a string or matches a regex.",
   "permissions": [
     "storage",
