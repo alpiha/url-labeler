@@ -204,9 +204,6 @@ const shapeOptions = (name) =>
 
 function buildEditorControls() {
   $('#shapes').replaceChildren(...shapeOptions('shape'));
-  f.headerSize.replaceChildren(
-    ...Object.entries(UL.HEADER_SIZES).map(([key, s]) => h('option', { value: key, textContent: s.label }))
-  );
   $('#placements').replaceChildren(
     ...Object.entries(UL.PLACEMENTS).map(([key, label]) =>
       h('label', {}, h('input', { type: 'checkbox', name: `pl-${key}` }), ` ${label}`)
@@ -214,9 +211,6 @@ function buildEditorControls() {
   );
   f.pagePosition.replaceChildren(
     ...Object.entries(UL.POSITIONS).map(([key, label]) => h('option', { value: key, textContent: label }))
-  );
-  f.pageSize.replaceChildren(
-    ...Object.entries(UL.SIZES).map(([key, s]) => h('option', { value: key, textContent: s.label }))
   );
 }
 
@@ -435,7 +429,7 @@ function refreshEditor() {
   // The mini page is drawn at about 80% scale.
   const pill = $('#pvPill');
   UL.fillPill(pill, label);
-  pill.style.fontSize = `${Math.round(UL.SIZES[label.pageSize].px * 0.8)}px`;
+  pill.style.fontSize = `${Math.round(label.pageSize * 0.8)}px`;
   const [v, hz] = label.pagePosition.split('-');
   Object.assign(pill.style, { top: '', bottom: '', left: '', right: '', [v]: v === 'top' ? '20px' : '6px', [hz]: '6px' });
 
@@ -447,6 +441,14 @@ function refreshEditor() {
   form.querySelectorAll('.pv-item').forEach((el) => {
     const on = el.dataset.placement.split(' ').some((p) => shown[p]);
     el.classList.toggle('off', !on);
+  });
+}
+
+// Out-of-range sizes are clamped to 8–24 once the field is left.
+for (const input of [f.pageSize, f.headerSize]) {
+  input.addEventListener('change', () => {
+    const rule = readForm();
+    input.value = input === f.pageSize ? rule.pageSize : rule.header.look.size;
   });
 }
 

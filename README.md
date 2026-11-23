@@ -32,7 +32,7 @@ The text goes before the value; `{}` puts the value somewhere else (`{} (API)`).
 
 The header can be shown in the **tab title** (`[PROD] TOPIC: TOPIC_NAME · Kafbat UI`) and under the **in-page label** in small italics, each turned on separately.
 
-The header has its own **look** for the in-page label: text color (light grey by default, dark grey on light label colors), size relative to the label, and italics.
+The header has its own **look** for the in-page label: text color (light grey by default, dark grey on light label colors), size (8–24 px), and italics.
 
 **Remove original title** (under *Display → Other*) drops the site's own tab title and keeps only the label and/or header, which helps on pages like Swagger UI whose tabs all say "Swagger UI". It can only be turned on while the label or the header is shown in the tab title.
 

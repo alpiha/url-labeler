@@ -33,20 +33,18 @@ var UL = (() => {
     regex: 'regex',
   };
 
-  // Font size of the in-page label.
-  const SIZES = {
-    small: { label: 'Small', px: 11 },
-    medium: { label: 'Medium', px: 12 },
-    large: { label: 'Large', px: 15 },
-    xlarge: { label: 'Extra large', px: 19 },
-  };
+  // Font sizes of the in-page label and its header, in px.
+  const MIN_SIZE = 8;
+  const MAX_SIZE = 24;
+  // Earlier versions picked a named size: px for the label, relative to the label for the header.
+  const OLD_SIZES = { small: 11, medium: 12, large: 15, xlarge: 19 };
+  const OLD_HEADER_SIZES = { xsmall: 0.7, small: 0.8, same: 1 };
 
-  // Header size, relative to the label's text.
-  const HEADER_SIZES = {
-    xsmall: { label: 'Extra small', em: 0.7 },
-    small: { label: 'Small', em: 0.8 },
-    same: { label: 'Same as label', em: 1 },
-  };
+  function fontSize(value, fallback) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return fallback;
+    return Math.min(MAX_SIZE, Math.max(MIN_SIZE, Math.round(n)));
+  }
 
   const PILL_CSS = `
 .pill{display:inline-flex;align-items:center;box-sizing:border-box;font:600 12px/1 system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -86,26 +84,27 @@ var UL = (() => {
   }
 
   // The header is a second, smaller line read from the URL, e.g. the topic name on a topic page.
-  function normalizeHeader(hd = {}) {
+  function normalizeHeader(hd = {}, labelSize = 12) {
     const p = hd.placements || {};
     return {
       enabled: !!hd.enabled,
       checks: (Array.isArray(hd.checks) ? hd.checks : []).filter(isObject).map(normalizeHeaderCheck),
       placements: { title: flag(p.title, true), page: flag(p.page, true) },
-      look: normalizeHeaderLook(hd.look),
+      look: normalizeHeaderLook(hd.look, labelSize),
     };
   }
 
-  function normalizeHeaderLook(l = {}) {
+  function normalizeHeaderLook(l = {}, labelSize = 12) {
     return {
       textColor: /^#[0-9a-f]{6}$/i.test(l.textColor) ? l.textColor.toLowerCase() : '', // '' = automatic
-      size: HEADER_SIZES[l.size] ? l.size : 'small',
+      size: fontSize(l.size, fontSize(labelSize * (OLD_HEADER_SIZES[l.size] ?? 0.8), 10)),
       italic: flag(l.italic, true),
     };
   }
 
   function normalizeRule(r = {}) {
     const p = r.placements || {};
+    const pageSize = fontSize(r.pageSize, OLD_SIZES[r.pageSize] ?? 12);
     return {
       id: typeof r.id === 'string' && r.id ? r.id : newId(),
       name: String(r.name ?? ''),
@@ -128,8 +127,8 @@ var UL = (() => {
       // Drop the site's own tab title, keeping only the label and/or header. Briefly lived under `header`.
       replaceTitle: !!(r.replaceTitle ?? r.header?.replaceTitle),
       textColor: /^#[0-9a-f]{6}$/i.test(r.textColor) ? r.textColor.toLowerCase() : '', // '' = automatic
-      pageSize: SIZES[r.pageSize] ? r.pageSize : 'medium',
-      header: normalizeHeader(r.header),
+      pageSize,
+      header: normalizeHeader(r.header, pageSize),
     };
   }
 
@@ -482,7 +481,7 @@ var UL = (() => {
     }
     el.style.background = label.color;
     el.style.color = labelTextColor(label);
-    el.style.fontSize = sized ? `${(SIZES[label.pageSize] || SIZES.medium).px}px` : '';
+    el.style.fontSize = sized ? `${label.pageSize}px` : '';
   }
 
   // The header's own text color, or grey when it's automatic: light grey on dark label colors,
@@ -495,7 +494,8 @@ var UL = (() => {
   function styleHeader(el, label) {
     const look = label.headerLook || normalizeHeaderLook();
     el.className = 'sub';
-    el.style.fontSize = `${HEADER_SIZES[look.size].em}em`;
+    // Relative to the label, so it scales along wherever the label is shown at another size.
+    el.style.fontSize = `${(look.size / (label.pageSize || 12)).toFixed(3)}em`;
     el.style.fontStyle = look.italic ? 'italic' : 'normal';
     el.style.color = headerTextColor(label);
   }
@@ -557,7 +557,7 @@ var UL = (() => {
   }
 
   return {
-    SHAPES, PLACEMENTS, POSITIONS, SIZES, HEADER_FROM, HEADER_SIZES, PILL_CSS,
+    SHAPES, PLACEMENTS, POSITIONS, MIN_SIZE, MAX_SIZE, HEADER_FROM, PILL_CSS,
     newId, normalizeRule, normalizeTextCheck, normalizeHeaderCheck, normalizeEnvGroup, normalizeState, matchTemplate, envSwitches, hasPlacement, regexError, find, matches, pickText, pickHeader,
     makeLabel, resolve, titlePrefix, composeTitle, badgeText, iconText, textColor, labelTextColor, headerTextColor, drawIcon, iconImageData, faviconDataUrl, fillPill,
     loadState, saveState, buildExport, parseImport, mergeState,

@@ -276,5 +276,6 @@ label:has(> input:disabled) { opacity: .5; }
 /* Look: color, text color, size */
 .look-fields { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; }
 .look-fields select { width: auto; }
+.look-fields .size-input { width: 64px !important; }
 .look-fields label.inline { font-size: 12px; color: var(--muted); }
 input[type=color]:disabled { opacity: .45; cursor: default; }
