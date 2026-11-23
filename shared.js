@@ -25,13 +25,26 @@ var UL = (() => {
     'bottom-right': 'Bottom right',
   };
 
-  // Font size of the in-page label.
-  const SIZES = {
-    small: { label: 'Small', px: 11 },
-    medium: { label: 'Medium', px: 12 },
-    large: { label: 'Large', px: 15 },
-    xlarge: { label: 'Extra large', px: 19 },
+  // Where a header check finds its value.
+  const HEADER_FROM = {
+    contains: 'URL contains',
+    after: 'path part after',
+    before: 'path part before',
+    regex: 'regex',
   };
+
+  // Font sizes of the in-page label and its header, in px.
+  const MIN_SIZE = 8;
+  const MAX_SIZE = 24;
+  // Earlier versions picked a named size: px for the label, relative to the label for the header.
+  const OLD_SIZES = { small: 11, medium: 12, large: 15, xlarge: 19 };
+  const OLD_HEADER_SIZES = { xsmall: 0.7, small: 0.8, same: 1 };
+
+  function fontSize(value, fallback) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return fallback;
+    return Math.min(MAX_SIZE, Math.max(MIN_SIZE, Math.round(n)));
+  }
 
   const PILL_CSS = `
 .pill{display:inline-flex;align-items:center;box-sizing:border-box;font:600 12px/1 system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -40,6 +53,11 @@ var UL = (() => {
 .pill.round{border-radius:999px}
 .pill.arrow{padding:.42em 1.35em;box-shadow:none;
   clip-path:polygon(.85em 0,calc(100% - .85em) 0,100% 50%,calc(100% - .85em) 100%,.85em 100%,0 50%)}
+.pill.two{flex-direction:column;align-items:flex-start;gap:.3em;line-height:1.1}
+.pill.two.arrow{align-items:center}
+.pill .sub{font-weight:400}
+.pill{max-width:100%}
+.pill.two>span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 `;
 
   function newId() {
@@ -47,18 +65,48 @@ var UL = (() => {
   }
 
   const flag = (value, fallback) => (value === undefined ? fallback : !!value);
+  // Shown text is trimmed with runs of spaces collapsed, like browsers do with tab titles.
+  const clean = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
   const isObject = (r) => r && typeof r === 'object' && !Array.isArray(r);
 
   function normalizeTextCheck(t = {}) {
     return {
       matchType: t.matchType === 'regex' ? 'regex' : 'contains',
       pattern: String(t.pattern ?? ''),
-      text: String(t.text ?? ''),
+      text: clean(t.text),
+    };
+  }
+
+  function normalizeHeaderCheck(c = {}) {
+    return {
+      from: HEADER_FROM[c.from] ? c.from : 'after',
+      pattern: String(c.pattern ?? ''),
+      text: clean(c.text),
+    };
+  }
+
+  // The header is a second, smaller line read from the URL, e.g. the topic name on a topic page.
+  function normalizeHeader(hd = {}, labelSize = 12) {
+    const p = hd.placements || {};
+    return {
+      enabled: !!hd.enabled,
+      checks: (Array.isArray(hd.checks) ? hd.checks : []).filter(isObject).map(normalizeHeaderCheck),
+      placements: { title: flag(p.title, true), page: flag(p.page, true) },
+      look: normalizeHeaderLook(hd.look, labelSize),
+    };
+  }
+
+  function normalizeHeaderLook(l = {}, labelSize = 12) {
+    return {
+      textColor: /^#[0-9a-f]{6}$/i.test(l.textColor) ? l.textColor.toLowerCase() : '', // '' = automatic
+      size: fontSize(l.size, fontSize(labelSize * (OLD_HEADER_SIZES[l.size] ?? 0.8), 10)),
+      italic: flag(l.italic, true),
     };
   }
 
   function normalizeRule(r = {}) {
     const p = r.placements || {};
+    const pageSize = fontSize(r.pageSize, OLD_SIZES[r.pageSize] ?? 12);
     return {
       id: typeof r.id === 'string' && r.id ? r.id : newId(),
       name: String(r.name ?? ''),
@@ -67,7 +115,7 @@ var UL = (() => {
       pattern: String(r.pattern ?? ''),
       caseSensitive: !!r.caseSensitive,
       // `displayName` is the version 1 name for the default text.
-      defaultText: String(r.defaultText ?? r.displayName ?? ''),
+      defaultText: clean(r.defaultText ?? r.displayName),
       texts: (Array.isArray(r.texts) ? r.texts : []).filter(isObject).map(normalizeTextCheck),
       shape: SHAPES[r.shape] ? r.shape : 'square',
       color: /^#[0-9a-f]{6}$/i.test(r.color) ? r.color.toLowerCase() : '#d93025',
@@ -78,8 +126,11 @@ var UL = (() => {
         page: flag(p.page, false),
       },
       pagePosition: POSITIONS[r.pagePosition] ? r.pagePosition : 'bottom-left',
+      // Drop the site's own tab title, keeping only the label and/or header. Briefly lived under `header`.
+      replaceTitle: !!(r.replaceTitle ?? r.header?.replaceTitle),
       textColor: /^#[0-9a-f]{6}$/i.test(r.textColor) ? r.textColor.toLowerCase() : '', // '' = automatic
-      pageSize: SIZES[r.pageSize] ? r.pageSize : 'medium',
+      pageSize,
+      header: normalizeHeader(r.header, pageSize),
     };
   }
 
@@ -115,7 +166,8 @@ var UL = (() => {
   }
 
   function hasPlacement(rule) {
-    return Object.values(rule.placements).some(Boolean);
+    const hd = rule.header;
+    return Object.values(rule.placements).some(Boolean) || (hd.enabled && (hd.placements.title || hd.placements.page));
   }
 
   function regexError(pattern) {
@@ -156,10 +208,76 @@ var UL = (() => {
     return { text: rule.defaultText.trim(), check: -1 };
   }
 
-  function makeLabel(rule, text) {
+  const decode = (s) => {
+    try {
+      return decodeURIComponent(s);
+    } catch {
+      return s;
+    }
+  };
+
+  // Also accepts an address typed without "https://", like "example.com/a".
+  function parseUrl(url) {
+    for (const s of [url, `https://${url}`]) {
+      try {
+        const u = new URL(s);
+        if (u.hostname) return u;
+      } catch {}
+    }
+    return null;
+  }
+
+  // The value a header check finds in the URL, or null. "contains" finds the pattern itself.
+  // "after"/"before" look for the pattern as whole parts of the address ("all-topics",
+  // "clusters/local" or "example.com/app") and take the part next to it. The host (without
+  // "www.") counts as the first part, and a hash route like "#/topics/x" as part of the path.
+  function headerValue(check, caseSensitive, url) {
+    if (check.from === 'regex' || check.from === 'contains') return find(check.from, check.pattern, caseSensitive, url);
+    const u = parseUrl(url);
+    if (!u) return null;
+    const norm = (s) => (caseSensitive ? s : s.toLowerCase());
+    const noWww = (s) => s.replace(/^www\./i, '');
+    const hashPath = u.hash.startsWith('#/') ? u.hash.slice(1).split('?')[0] : '';
+    const parts = [noWww(u.hostname), ...(u.pathname + hashPath).split('/').filter(Boolean).map(decode)];
+    const want = check.pattern.split('/').filter(Boolean).map(norm);
+    if (want.length) want[0] = noWww(want[0]);
+    if (!want.length) return null;
+    for (let i = 0; i + want.length <= parts.length; i++) {
+      if (!want.every((w, j) => norm(parts[i + j]) === w)) continue;
+      const value = check.from === 'after' ? parts[i + want.length] : parts[i - 1];
+      if (value) return value;
+    }
+    return null;
+  }
+
+  // "TOPIC:" + "X" → "TOPIC: X". `{}` places the value somewhere else: "{} (API)".
+  function fillHeader(text, value) {
+    if (!text) return value;
+    return text.includes('{}') ? text.replaceAll('{}', value) : `${text} ${value}`;
+  }
+
+  // Picks the header for a URL. `check` is the index of the header check used, or -1 for none.
+  function pickHeader(rule, url) {
+    if (!rule.header.enabled) return { text: '', check: -1 };
+    for (let i = 0; i < rule.header.checks.length; i++) {
+      const c = rule.header.checks[i];
+      const value = headerValue(c, rule.caseSensitive, url);
+      if (!value) continue;
+      // "contains" shows its text as is; the value is just the pattern.
+      const text = c.from === 'contains' ? c.text.trim() || value : fillHeader(c.text.trim(), value);
+      return { text: text.trim(), check: i };
+    }
+    return { text: '', check: -1 };
+  }
+
+  function makeLabel(rule, text, header = '') {
     return {
       name: rule.name,
       displayName: text,
+      header,
+      headerPlacements: rule.header.placements,
+      headerLook: rule.header.look,
+      replaceTitle: rule.replaceTitle,
       shape: rule.shape,
       color: rule.color,
       placements: rule.placements,
@@ -174,7 +292,7 @@ var UL = (() => {
     for (const rule of state.rules) {
       if (!matches(rule, url)) continue;
       const { text, check } = pickText(rule, url);
-      if (text) return { rule, check, label: makeLabel(rule, text) };
+      if (text) return { rule, check, label: makeLabel(rule, text, pickHeader(rule, url).text) };
     }
     return null;
   }
@@ -252,6 +370,16 @@ var UL = (() => {
   function titlePrefix(label) {
     const s = SHAPES[label.shape];
     return `${s.open}${label.displayName}${s.close} `;
+  }
+
+  // The tab title for a page whose own title is `base`: "[PROD] TOPIC: X · base".
+  // With replaceTitle the site's title is dropped, as long as the label or header is left to show.
+  function composeTitle(label, base) {
+    const prefix = label.placements.title ? titlePrefix(label) : '';
+    const header = label.headerPlacements.title ? label.header : '';
+    const own = label.replaceTitle && (prefix || header) ? '' : base;
+    if (!header) return own ? prefix + own : prefix.trim();
+    return prefix + header + (own ? ` · ${own}` : '');
   }
 
   function badgeText(label) {
@@ -341,11 +469,37 @@ var UL = (() => {
 
   // `sized` applies the in-page font size (the in-page label itself); other uses keep the default size.
   function fillPill(el, label, sized = false) {
-    el.className = `pill ${label.shape}`;
-    el.textContent = label.displayName;
+    const header = label.headerPlacements?.page ? label.header : '';
+    el.className = `pill ${label.shape}${header ? ' two' : ''}`;
+    if (header) {
+      const main = document.createElement('span');
+      main.textContent = label.displayName;
+      const sub = document.createElement('span');
+      sub.textContent = header;
+      styleHeader(sub, label);
+      el.replaceChildren(main, sub);
+    } else {
+      el.textContent = label.displayName;
+    }
     el.style.background = label.color;
     el.style.color = labelTextColor(label);
-    el.style.fontSize = sized ? `${(SIZES[label.pageSize] || SIZES.medium).px}px` : '';
+    el.style.fontSize = sized ? `${label.pageSize}px` : '';
+  }
+
+  // The header's own text color, or grey when it's automatic: light grey on dark label colors,
+  // dark grey on light ones so it stays readable.
+  function headerTextColor(label) {
+    const look = label.headerLook || normalizeHeaderLook();
+    return look.textColor || (textColor(label.color) === '#ffffff' ? '#d0d0d0' : '#555555');
+  }
+
+  function styleHeader(el, label) {
+    const look = label.headerLook || normalizeHeaderLook();
+    el.className = 'sub';
+    // Relative to the label, so it scales along wherever the label is shown at another size.
+    el.style.fontSize = `${(look.size / (label.pageSize || 12)).toFixed(3)}em`;
+    el.style.fontStyle = look.italic ? 'italic' : 'normal';
+    el.style.color = headerTextColor(label);
   }
 
   async function loadState() {
@@ -405,9 +559,9 @@ var UL = (() => {
   }
 
   return {
-    SHAPES, PLACEMENTS, POSITIONS, SIZES, PILL_CSS,
-    newId, normalizeRule, normalizeTextCheck, normalizeEnvGroup, normalizeState, matchTemplate, envSwitches, hasPlacement, regexError, find, matches, pickText,
-    makeLabel, resolve, titlePrefix, badgeText, iconText, textColor, labelTextColor, drawIcon, iconImageData, faviconDataUrl, fillPill,
+    SHAPES, PLACEMENTS, POSITIONS, MIN_SIZE, MAX_SIZE, HEADER_FROM, PILL_CSS,
+    newId, normalizeRule, normalizeTextCheck, normalizeHeaderCheck, normalizeEnvGroup, normalizeState, matchTemplate, envSwitches, hasPlacement, regexError, find, matches, pickText, pickHeader,
+    makeLabel, resolve, titlePrefix, composeTitle, badgeText, iconText, textColor, labelTextColor, headerTextColor, drawIcon, iconImageData, faviconDataUrl, fillPill,
     loadState, saveState, buildExport, parseImport, mergeState,
   };
 })();

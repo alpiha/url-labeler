@@ -67,7 +67,9 @@ async function updateTab(tab) {
   await action('setBadgeText', { tabId, text: showBadge ? UL.badgeText(label) : '' });
   await action('setTitle', {
     tabId,
-    title: label ? `URL Labeler: ${label.displayName}${label.name ? ` (${label.name})` : ''}` : 'URL Labeler: no label',
+    title: label
+      ? `URL Labeler: ${label.displayName}${label.header ? ` – ${label.header}` : ''}${label.name ? ` (${label.name})` : ''}`
+      : 'URL Labeler: no label',
   });
 }
 
